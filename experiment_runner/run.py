@@ -8,7 +8,7 @@ from sklearn.covariance import graphical_lasso, empirical_covariance
 import os
 import pickle
 import logging
-from collections import defaultdict
+import time
 
 logging.getLogger().setLevel(logging.DEBUG)
 
@@ -68,3 +68,17 @@ if __name__ == "__main__":
 
     assert(len(models) == len(experiment_results))
     logging.info(f"Successfully collected estimator output for {len(experiment_results)} models")
+    logging.info("Saving experiment result...")
+
+    result_path = os.path.join(experiment_config['datadir'], f"{int(time.time_ns())}")
+    os.makedirs(result_path, exist_ok=True)
+
+    with open(os.path.join(result_path, "output.data"), "wb") as f:
+        pickle.dump(experiment_results, f)
+        logging.info(f"Successfully saved result")
+
+    with open(os.path.join(result_path, "config"), "w") as f:
+        for k, v in experiment_config.items():
+            f.write(f"{k}: {v}\n")
+
+        logging.info(f"Successfully saved config")
