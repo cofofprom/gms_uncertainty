@@ -58,10 +58,10 @@ if __name__ == "__main__":
 
         logging.info(f"Successfully loaded {len(models)} models")
 
-    experiment_results = []
+    experiment_results = {eps: list() for eps in experiment_config['eps_list']}
     with mp.Pool() as p:
         waiters = [p.apply_async(process_model, args=(model, experiment_config),
-                           callback=experiment_results.append
+                           callback=lambda x: [experiment_results[eps].extend(x[eps]) for eps in x]
                         ) for model in models]
         
         for w in waiters: w.wait()
