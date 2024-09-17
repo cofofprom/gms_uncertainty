@@ -66,7 +66,7 @@ if __name__ == "__main__":
         
         for w in waiters: w.wait()
 
-    assert(len(models) == len(experiment_results))
+    assert(len(experiment_config['eps_list']) == len(experiment_results))
     logging.info(f"Successfully collected estimator output for {len(experiment_results)} models")
     logging.info("Saving experiment result...")
 
