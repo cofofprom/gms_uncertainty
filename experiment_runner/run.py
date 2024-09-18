@@ -58,13 +58,21 @@ if __name__ == "__main__":
 
         logging.info(f"Successfully loaded {len(models)} models")
 
-    experiment_results = {eps: list() for eps in experiment_config['eps_list']}
+    experiment_results = {eps: dict() for eps in experiment_config['eps_list']}
+    def agg(x, i):
+        for eps in x:
+            if i not in experiment_results[eps]: experiment_results[eps][i] = list()
+            experiment_results[eps][i].extend(x[eps])
+
     with mp.Pool() as p:
-        waiters = [p.apply_async(process_model, args=(model, experiment_config),
-                           callback=lambda x: [experiment_results[eps].extend(x[eps]) for eps in x]
-                        ) for model in models]
+        waiters = []
+        for i, model in enumerate(models):
+            w = p.apply_async(process_model, args=(model, experiment_config))
+            waiters.append(w)
         
-        for w in waiters: w.wait()
+        for i, w in enumerate(waiters):
+            x = w.get()
+            agg(x, i)
 
     assert(len(experiment_config['eps_list']) == len(experiment_results))
     logging.info(f"Successfully collected estimator output for {len(experiment_results)} models")
