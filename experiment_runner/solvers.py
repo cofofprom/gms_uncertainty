@@ -1,9 +1,10 @@
 from sklearn.covariance import graphical_lasso, empirical_covariance
 from utils import pearson_corr_via_kendall, pearson_corr_via_fechner
 from robust_selection import RobustSelection
+import numpy as np
 
 def graphical_lasso_via_pearson(data, reg_param):
-    covar = empirical_covariance(data, assume_centered=True)
+    covar = np.corrcoef(data.T)
     try:
         result = graphical_lasso(covar, reg_param, return_costs=True, max_iter=500)
     except:
@@ -29,7 +30,7 @@ def graphical_lasso_via_fechner(data, reg_param):
 
     return result
 
-def graphical_lasso_robsel(data, params):
-    param = RobustSelection(data, params)
+def graphical_lasso_robsel(data, param):
+    param = RobustSelection(data, param)
 
     return graphical_lasso_via_pearson(data, param)
