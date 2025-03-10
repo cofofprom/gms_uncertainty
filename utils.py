@@ -1,6 +1,9 @@
 import networkx as nx
 import numpy as np
 from scipy.stats import t, kendalltau, norm
+import tensorly as tl
+from sklearn.covariance import graphical_lasso
+from scipy.linalg import fractional_matrix_power
 
 def generateDominantDiagonal(dim: int, density: float) -> tuple:
     # Generate random Erdos-Renyi graph with given probability of an edge (density)
@@ -178,3 +181,43 @@ class MHTSolver:
                 adj[tuple(idx_sorted[k - 1])] = 0
                 adj[tuple(idx_sorted[k - 1])[::-1]] = 0
             return adj
+        
+def tensor_normal_sample(mean, covariances, size=1):
+    chol_L = [np.linalg.cholesky(cov) for cov in covariances]
+    
+    def sample():
+        Z = tl.tensor(np.random.randn(*mean.shape))
+        Z = tl.tenalg.multi_mode_dot(Z, chol_L)
+        return Z
+
+    samples = np.stack([sample() for _ in range(size)])
+    
+    return samples
+
+def emp_way_cov(data, way, precisions):
+    corrected_precisions = [fractional_matrix_power(prec, 1/2) \
+                            if (i+1) != way else np.eye(data.shape[way]) \
+                            for i, prec in enumerate(precisions)]
+    result_cov = np.zeros((data.shape[way], data.shape[way]))
+    
+    for T_i in data:
+        V_i = tl.unfold(tl.tenalg.multi_mode_dot(T_i, corrected_precisions), way - 1)
+        result_cov += V_i @ V_i.T
+
+    return data.shape[way] / len(data) / np.prod(data.shape[1:]) * result_cov
+
+def tlasso(data, reg_params, max_iters=100):
+    solutions = [np.eye(dim) for dim in data.shape[1:]]
+    diffs = np.array([np.inf for _ in solutions])
+
+    for t in range(max_iters):
+        for k in range(1, len(data.shape[1:])+1):
+            S_k = emp_way_cov(data, k, solutions)
+            _, emp_prec = graphical_lasso(S_k, reg_params[k-1])
+            emp_prec /= np.linalg.norm(emp_prec)
+            diffs[k-1] = np.linalg.norm(np.abs(solutions[k-1] - emp_prec))
+            solutions[k-1] = emp_prec
+        
+        if np.all(diffs <= 1e-4): break
+    
+    return solutions
